@@ -14,6 +14,8 @@ import eyed3.id3.frames
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
+import decrypt.vars as mVars
+
 
 class HTML:
     ua = UserAgent()
@@ -54,11 +56,13 @@ class SongDetailGetter:
             self.albumHtml = None
             self.alive = False
 
-    def getSongLyrics(self, translation=True) -> str:
+    def getSongLyrics(self, translation: bool = None) -> str:
         """
         :param translation: 只是一个请求，不一定真的翻译（因为可能没有翻译版本歌词）
         """
         if self.alive:
+            if translation is None:
+                translation = mVars.translate
             if self.lyrics is not None:
                 return self.lyrics
             obj = json.loads(HTML.request(self.lyricsUrl(self.id)))  # type:dict
@@ -156,7 +160,7 @@ class DecryptedFile:
 
     @staticmethod
     def cutIDFromUrl(url: str) -> int:
-        match = re.search(r"id=(\d+)", url)
+        match = re.search(r"\?id=(\d+)", url)
         if match:
             return int(match.group(1))
         return -1
