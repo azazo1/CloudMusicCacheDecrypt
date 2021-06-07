@@ -7,11 +7,10 @@ from asyncio import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from typing import List, Callable
 
+import eyed3
+import eyed3.id3.frames
 from bs4 import BeautifulSoup
-
-import meyed3
-import meyed3.id3.frames
-from mfake_useragent import UserAgent
+from fake_useragent import UserAgent
 
 
 class HTML:
@@ -196,7 +195,7 @@ class DecryptedFile:
 
         with open(out_path, "wb") as w:
             w.write(bytes(get))
-        audio = meyed3.load(out_path)
+        audio = eyed3.load(out_path)
         audio.initTag()
         audio.tag.artist = self.song.getSongArtist()
         audio.tag.album_artist = self.song.getSongAlbumArtist()
@@ -205,7 +204,7 @@ class DecryptedFile:
         url = self.song.getSongPicUrl()
         if url:
             audio.tag.images.set(
-                meyed3.id3.frames.ImageFrame.OTHER_ICON,
+                eyed3.id3.frames.ImageFrame.OTHER_ICON,
                 None,
                 None,
                 "The picture of the artist",

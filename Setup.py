@@ -3,7 +3,7 @@ import os
 import sys
 from os.path import join
 
-needs = ["pip", "lxml"]
+needs = ["pip", "lxml", "beautifulsoup4", "eyed3", "fake_useragent"]
 failed = []
 while needs:
     for package in needs:

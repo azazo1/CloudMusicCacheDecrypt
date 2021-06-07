@@ -9,30 +9,45 @@ import pyperclip
 from decrypt.decrypt import Decrypt, DecryptedFile
 
 out = "./out/"
-if len(sys.argv) > 1:
-    if sys.argv[1] == "help" or sys.argv[1] == "/?" or sys.argv[1] == "?":
+in_ = r"D:\CloudMusic\缓存\Cache"
+
+autoOpen = True
+while len(sys.argv) > 1:
+    get = sys.argv.pop(-1)
+    if get == "help" or get == "/?" or get == "?" or get == "h" or get == "-h" or get == "/h":
         print(
             """
-            StartListener [out_path]
+            StartListener [-O"out_path"] [-N]
+            -I"": the decrypt source dir, ->"<- is needed. e.g: StartListener -I"C:/"
+            -O"out_path": the decrypt output dir, ->"<- is needed. e.g: StartListener -O"D:/"
+            -N: don't open explorer after decrypt finished.
             """
         )
         quit()
+    elif get == "-noAutoOpen" or get == "-N":
+        print("AutoOpen closed.")
+        autoOpen = False
+    elif "-I" in get:
+        in_ = get.replace("-I", "", 1)
+    elif "-O" in get:
+        out = get.replace("-O", "", 1)
     else:
-        out = sys.argv[1]
+        print("UnKnow param: " + str(get))
+        quit()
 
 
 class Listener:
     def __init__(self):
         self.alive = True
-        self.decrypter = Decrypt(source_path=r"D:\CloudMusic\缓存\Cache", out_path=out)
+        self.decrypter = Decrypt(source_path=in_, out_path=out)
         self.readingThread = Thread(target=self.threadRun, daemon=True)
 
     def threadRun(self):
         while self.alive:
-            get = input()
-            if get == "open":
-                self.openOutPath()
-            elif get == "quit":
+            _get = input()
+            if _get == "open":
+                self.openOutPath(True)
+            elif _get == "quit":
                 self.close()
 
     def loop(self, stopper: Callable = lambda: False):
@@ -40,12 +55,23 @@ class Listener:
         :param stopper: 应返回一个布尔值，为True时停止
         :return:
         """
+        print("输入路径为：" + os.path.abspath(self.decrypter.in_path))
         print("输出路径为：" + os.path.abspath(self.decrypter.out_path))
-        try:
-            os.mkdir(out)
-            print("输出路径不为空，正在创建...\n输出路径已创建。")
-        except FileExistsError:
-            pass
+        for path in (self.decrypter.in_path, self.decrypter.out_path):
+            path = os.path.abspath(path)
+            if not os.path.exists(path):
+                try:
+                    print(f"路径 {path} 不为空，正在创建...")
+                    os.mkdir(out)
+                    print(f"路径 {path} 已创建。")
+                except PermissionError:
+                    print(f"路径 {path} 权限不足")
+                    self.close()
+                except FileNotFoundError:
+                    print("请输入正确的路径！")
+                    self.close()
+        if not self.alive:
+            return
         print("输入\"open\" 回车来打开out文件夹")
         print("输入\"quit\" 回车来退出")
         self.readingThread.start()
@@ -77,7 +103,12 @@ class Listener:
     def close(self):
         self.alive = False
 
-    def openOutPath(self):
+    def openOutPath(self, user: bool = False):
+        """
+        :param user: 是否是用户发起的
+        """
+        if not autoOpen and not user:
+            return
         os.system(f"start explorer.exe \"{os.path.abspath(self.decrypter.out_path)}\"")
 
 
