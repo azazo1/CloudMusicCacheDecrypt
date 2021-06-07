@@ -5,6 +5,7 @@ from threading import Thread
 from typing import Callable
 
 import pyperclip
+from mutagen.mp3 import MP3
 
 from decrypt.decrypt import Decrypt, DecryptedFile
 
@@ -87,18 +88,27 @@ class Listener:
                 print("解析URL中...")
                 print(f"得到ID:{song_id}")
                 print("开始解码...")
-                get = self.decrypter.decryptID(song_id)
-                if get:
-                    print("解码成功！")
+                decryptFile = self.decrypter.decryptID(song_id)
+                decryptFile.path = os.path.abspath(self.decrypter.out_path)
+                if decryptFile:
+                    print(f"{decryptFile.song.getSongTitle()} - {decryptFile.song.getSongArtist()} 解码成功！\n"
+                          f"生成文件 \"{decryptFile.totalPath}\"")
                     self.openOutPath()
-                    get.path = self.decrypter.out_path
-                    if os.path.getsize(get.totalPath) < 1024 * 1024:
+                    if not self.checkFile(decryptFile.totalPath):
                         print("目标文件较小，可能为试听文件...请去 https://music.163.com 网站下载正版")
                 else:
                     print("解码失败！")
             except pyperclip.PyperclipTimeoutException:
                 sys.stdin.isatty()
                 pass
+
+    @staticmethod
+    def checkFile(filepath: str):
+        """判断文件是否正常"""
+        mp3 = MP3(filepath)
+        if mp3.info.length >= 90:
+            return True
+        return False
 
     def close(self):
         self.alive = False

@@ -2,6 +2,7 @@
 import os
 import re
 import time
+import traceback
 import urllib.request as ure
 from asyncio import Future
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -17,12 +18,13 @@ class HTML:
     ua = UserAgent()
 
     def __init__(self, url: str):
-        self.htmlContent = self._request(url)
+        self.htmlContent = self.request(url).decode("utf-8")
         self.bs = BeautifulSoup(self.htmlContent, features="lxml")
 
-    def _request(self, url: str):
-        req = ure.Request(url, headers={"User-Agent": self.ua.random})
-        return ure.urlopen(req).read().decode("utf-8")
+    @classmethod
+    def request(cls, url: str) -> bytes:
+        req = ure.Request(url, headers={"User-Agent": cls.ua.random})
+        return ure.urlopen(req).read()
 
 
 class SongDetailGetter:
@@ -49,8 +51,18 @@ class SongDetailGetter:
         if self.alive:
             imgs = self.songHtml.bs.find_all("img", attrs={"class": "j-img"})
             if imgs:
-                return imgs[0]["data-src"]
+                return imgs[0]["src"]
         return ""
+
+    def getSongPicData(self) -> bytes:
+        if self.alive:
+            picUrl = self.getSongPicUrl()
+            try:
+                return HTML.request(picUrl)
+            except Exception:
+                traceback.print_exc()
+                return b""
+        return b""
 
     def getSongTitle(self) -> str:
         if self.alive:
@@ -201,14 +213,13 @@ class DecryptedFile:
         audio.tag.album_artist = self.song.getSongAlbumArtist()
         audio.tag.album = self.song.getSongAlbum()
         audio.tag.title = self.song.getSongTitle()
-        url = self.song.getSongPicUrl()
-        if url:
+        data = self.song.getSongPicData()
+        if data:
             audio.tag.images.set(
-                eyed3.id3.frames.ImageFrame.OTHER_ICON,
-                None,
-                None,
+                eyed3.id3.frames.ImageFrame.ICON,
+                data,
+                "image/jpeg",
                 "The picture of the artist",
-                img_url=url
             )
         audio.tag.save()
 
