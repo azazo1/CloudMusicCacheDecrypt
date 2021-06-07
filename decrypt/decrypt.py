@@ -1,4 +1,5 @@
 # coding=utf-8
+import json
 import os
 import re
 import time
@@ -36,22 +37,48 @@ class SongDetailGetter:
     def albumUrl(albumID):
         return "http://music.163.com/album?id=" + str(albumID)
 
+    @staticmethod
+    def lyricsUrl(songID):
+        return "http://music.163.com/api/song/lyric?id=" + str(songID) + "&lv=-1&tv=-1"
+
     def __init__(self, song_id: int):
         self.id = song_id
         self.alive = True
+        self.lyrics = None  # type:str
         try:
             self.songHtml = HTML(self.songUrl(self.id))
             self.albumHtml = HTML(self.albumUrl(self.getSongAlbumID()))
         except Exception:
+            traceback.print_exc()
             self.songHtml = None
             self.albumHtml = None
             self.alive = False
 
-    def getSongPicUrl(self) -> str:
+    def getSongLyrics(self, translation=True) -> str:
+        """
+        :param translation: 只是一个请求，不一定真的翻译（因为可能没有翻译版本歌词）
+        """
+        if self.alive:
+            if self.lyrics is not None:
+                return self.lyrics
+            obj = json.loads(HTML.request(self.lyricsUrl(self.id)))  # type:dict
+            prime_keys = list(obj.keys())
+            if "nolyric" in prime_keys and obj["nolyric"] is True:  # 没有歌词
+                self.lyrics = ""
+                return self.lyrics
+            if "tlyric" in prime_keys and translation:  # 翻译版本
+                return obj['tlyric']['lyric']
+            if "lrc" in prime_keys:  # 初始版本
+                return obj['lrc']['lyric']
+        return ""
+
+    def getSongPicUrl(self, size=(1000, 1000)) -> str:
         if self.alive:
             imgs = self.songHtml.bs.find_all("img", attrs={"class": "j-img"})
             if imgs:
-                return imgs[0]["src"]
+                img_noSize = imgs[0]["src"].split('?param=')[0]  # type:str
+                img = img_noSize + "?param={}y{}".format(*size)
+                return img
         return ""
 
     def getSongPicData(self) -> bytes:
@@ -77,9 +104,9 @@ class SongDetailGetter:
         if self.alive:
             singerP = self.songHtml.bs.find_all("p", attrs={'class': "des s-fc4"})[0]
             if singerP:
-                singerA = singerP.find("a")
-                if singerA:
-                    return singerA.text
+                singerSpan = singerP.find("span")
+                if singerSpan:
+                    return singerSpan['title']
         return ""
 
     def getSongAlbum(self) -> str:
@@ -93,9 +120,9 @@ class SongDetailGetter:
 
     def getSongAlbumID(self) -> int:
         if self.alive:
-            singerP = self.songHtml.bs.find_all("p", attrs={'class': "des s-fc4"})[1]
-            if singerP:
-                singerA = singerP.find("a")
+            singerPs = self.songHtml.bs.find_all("p", attrs={'class': "des s-fc4"})
+            if singerPs and singerPs[1]:
+                singerA = singerPs[1].find("a")
                 if singerA:
                     return int(singerA["href"].split('?id=')[-1])
         return 0
@@ -195,10 +222,13 @@ class DecryptedFile:
 
         self.extra = self.DecryptedExtra
 
-        if self.song.getSongArtist():
-            self.fileName = (self.song.getSongTitle() or "UnKnowSong") + " - " + self.song.getSongArtist()
+        title = self.song.getSongTitle() or "UnKnowSong"
+        artist = self.song.getSongArtist()
+
+        if artist and not artist.isspace():
+            self.fileName = title + " - " + artist
         else:
-            self.fileName = self.song.getSongTitle() or "UnKnowSong"
+            self.fileName = title
 
         if out_path is None:
             out_path = self.totalPath
@@ -209,14 +239,16 @@ class DecryptedFile:
             w.write(bytes(get))
         audio = eyed3.load(out_path)
         audio.initTag()
-        audio.tag.artist = self.song.getSongArtist()
+        audio.tag.artist = artist
         audio.tag.album_artist = self.song.getSongAlbumArtist()
         audio.tag.album = self.song.getSongAlbum()
-        audio.tag.title = self.song.getSongTitle()
+        audio.tag.title = title
+        audio.tag.audio_file_url = self.song.songUrl(self.song.id)
+        audio.tag.lyrics.set(self.song.getSongLyrics())
         data = self.song.getSongPicData()
         if data:
             audio.tag.images.set(
-                eyed3.id3.frames.ImageFrame.ICON,
+                eyed3.id3.frames.ImageFrame.FRONT_COVER,
                 data,
                 "image/jpeg",
                 "The picture of the artist",

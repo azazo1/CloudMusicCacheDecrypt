@@ -84,7 +84,7 @@ class Listener:
                 if song_id == -1:
                     continue
                 pyperclip.copy("")
-                print("检测到来自剪贴板的URL_ID事件。")
+                print("\a检测到来自剪贴板的URL_ID事件。")
                 print("解析URL中...")
                 print(f"得到ID:{song_id}")
                 print("开始解码...")
