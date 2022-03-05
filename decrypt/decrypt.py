@@ -12,21 +12,20 @@ from typing import List, Callable
 import eyed3
 import eyed3.id3.frames
 from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
 
 import decrypt.vars as mVars
 
 
 class HTML:
-    ua = UserAgent()
+    ua = "Mozilla x86"
 
     def __init__(self, url: str):
         self.htmlContent = self.request(url).decode("utf-8")
-        self.bs = BeautifulSoup(self.htmlContent, features="lxml")
+        self.bs = BeautifulSoup(self.htmlContent, features="html.parser")
 
     @classmethod
     def request(cls, url: str) -> bytes:
-        req = ure.Request(url, headers={"User-Agent": cls.ua.random})
+        req = ure.Request(url, headers={"User-Agent": cls.ua})
         return ure.urlopen(req).read()
 
 
@@ -58,11 +57,11 @@ class SongDetailGetter:
 
     def getSongLyrics(self, translation: bool = None) -> str:
         """
-        :param translation: 只是一个请求，不一定真的翻译（因为可能没有翻译版本歌词）
+        :param translation: 只是一个请求，不一定真的翻译（因为可能没有翻译版本歌词）,默认使用config中的值
         """
         if self.alive:
             if translation is None:
-                translation = mVars.translate
+                translation = mVars.Vars.now["translate"] == "1"
             if self.lyrics is not None:
                 return self.lyrics
             obj = json.loads(HTML.request(self.lyricsUrl(self.id)))  # type:dict
@@ -70,7 +69,7 @@ class SongDetailGetter:
             if "nolyric" in prime_keys and obj["nolyric"] is True:  # 没有歌词
                 self.lyrics = ""
                 return self.lyrics
-            if "tlyric" in prime_keys and translation:  # 翻译版本
+            if "tlyric" in prime_keys and translation and obj['tlyric']['lyric']:  # 翻译版本
                 return obj['tlyric']['lyric']
             if "lrc" in prime_keys:  # 初始版本
                 return obj['lrc']['lyric']
@@ -160,7 +159,7 @@ class DecryptedFile:
 
     @staticmethod
     def cutIDFromUrl(url: str) -> int:
-        match = re.search(r"\?id=(\d+)", url)
+        match = re.search(r"\?id=(\d+)", url) or re.search(r'song/(\d+)', url)
         if match:
             return int(match.group(1))
         return -1
@@ -230,10 +229,10 @@ class DecryptedFile:
         artist = self.song.getSongArtist()
 
         if artist and not artist.isspace():
-            self.fileName = title + " - " + artist
+            self.fileName = title + " - " + artist.replace('/', "&")
         else:
             self.fileName = title
-
+        self.fileName = re.sub(r'["\\/:?*<>|]', "", self.fileName)
         if out_path is None:
             out_path = self.totalPath
         else:
@@ -265,11 +264,32 @@ class DecryptedFile:
 
 
 class Decrypt:
-    def __init__(self, source_path: str, out_path: str = None):
+    @property
+    def in_path(self) -> str:
+        if self._in_path is None:
+            return mVars.Vars.now["in"]
+        return self.in_path
+
+    @in_path.setter
+    def in_path(self, val: str):
+        self._in_path = val
+
+    @property
+    def out_path(self) -> str:
+        if self._out_path is None:
+            return mVars.Vars.now["out"]
+        return self.out_path
+
+    @out_path.setter
+    def out_path(self, val: str):
+        self._out_path = val
+
+    def __init__(self, source_path: str = None, out_path: str = None):
         """
         :param source_path: 用于默认读取文件的目录
         :param out_path: 用于默认输出文件的目录
         """
+        # 以下两者都有默认值(property)
         self.in_path = source_path
         self.out_path = out_path
 
