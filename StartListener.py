@@ -219,6 +219,8 @@ if __name__ == '__main__':
     listener = Listener()
     try:
         listener.loop()
+    except KeyboardInterrupt:
+        pass
     finally:
         listener.close()
         input(">回车退出>")

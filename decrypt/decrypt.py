@@ -240,23 +240,23 @@ class DecryptedFile:
 
         with open(out_path, "wb") as w:
             w.write(bytes(get))
-        audio = eyed3.load(out_path)
-        audio.initTag()
-        audio.tag.artist = artist
-        audio.tag.album_artist = self.song.getSongAlbumArtist()
-        audio.tag.album = self.song.getSongAlbum()
-        audio.tag.title = title
-        audio.tag.audio_file_url = self.song.songUrl(self.song.id)
-        audio.tag.lyrics.set(self.song.getSongLyrics())
+        tag = eyed3.id3.tag.Tag(eyed3.id3.ID3_V2_3)
+        tag.parse(out_path, eyed3.id3.ID3_V2_3)
+        tag.artist = artist
+        tag.album_artist = self.song.getSongAlbumArtist()
+        tag.album = self.song.getSongAlbum()
+        tag.title = title
+        tag.audio_file_url = self.song.songUrl(self.song.id)
+        tag.lyrics.set(self.song.getSongLyrics())
         data = self.song.getSongPicData()
         if data:
-            audio.tag.images.set(
+            tag.images.set(
                 eyed3.id3.frames.ImageFrame.FRONT_COVER,
                 data,
                 "image/jpeg",
                 "The picture of the artist",
             )
-        audio.tag.save()
+        tag.save(out_path, eyed3.id3.ID3_V2_3)
 
     @property
     def totalPath(self):
