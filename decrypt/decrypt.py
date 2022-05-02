@@ -155,6 +155,7 @@ class AutoShutdownThreadPool(ThreadPoolExecutor):
 class DecryptedFile:
     UnDecryptedExtra = ".uc"
     DecryptedExtra = ".mp3"
+    LyricExtra = ".lrc"
     threadingPool = AutoShutdownThreadPool(10)
 
     @staticmethod
@@ -247,7 +248,8 @@ class DecryptedFile:
         tag.album = self.song.getSongAlbum()
         tag.title = title
         tag.audio_file_url = self.song.songUrl(self.song.id)
-        tag.lyrics.set(self.song.getSongLyrics())
+        lyric = self.song.getSongLyrics()
+        tag.lyrics.set(lyric)
         data = self.song.getSongPicData()
         if data:
             tag.images.set(
@@ -257,10 +259,17 @@ class DecryptedFile:
                 "The picture of the artist",
             )
         tag.save(out_path, eyed3.id3.ID3_V2_3)
+        if mVars.Vars.now['generateLyrics'] == "1":
+            with open(os.path.splitext(out_path)[0] + self.LyricExtra, "w", encoding='utf-8') as w:
+                w.write(lyric)
 
     @property
     def totalPath(self):
         return os.path.join(self.path, self.fileName + self.extra)
+
+    @property
+    def totalLyricsPath(self):
+        return os.path.join(self.path, self.fileName + self.LyricExtra)
 
 
 class Decrypt:

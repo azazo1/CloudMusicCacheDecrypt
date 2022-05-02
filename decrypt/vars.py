@@ -7,6 +7,7 @@ class Vars:
     session = "vars"
     default = {"autoOpen": "1",
                "translate": "1",
+               "generateLyrics": "1",
                "out": "./out/",
                "in": r"./cacheSource/"}
     now = {}

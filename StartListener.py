@@ -49,6 +49,8 @@ Command line arguments:
 
 -(n|y)T: Whether use the translated lyrics instead of original one. e.g: {this} -yT
 
+-(n|y)L: Generate the song and generate the lyrics file at the same time. e.g: {this} -yL
+
 help: Get help.
 
 Above can be used in this script's input stream.
@@ -58,7 +60,7 @@ open: Open decrypted output directory.
 """,
              """
 命令行参数:
-> {this} [-I"source_path"] [-O"out_path"] [-(n|y)Open] [-(n|y)T] [quit]
+> {this} [-I"source_path"] [-O"out_path"] [-(n|y)Open] [-(n|y)T] [-(n|y)L] [help]
 
 -I"source_path": 设置待解码文件所在夹, 即网易云缓存文件夹. ->"<- source_path 两边的英文双引号是必要的. 示例: {this} -I"C:/"
 
@@ -68,12 +70,16 @@ open: Open decrypted output directory.
 
 -(n|y)T: 是否选用翻译过的歌词(若有). 示例: {this} -yT
 
-help: 获取帮助.
+-(n|y)L: 是否在生成歌曲文件同时生成歌词文件(同时歌曲内也会有歌词). 示例: {this} -yL
+
+help: 获得帮助
 
 以上选项可以同时在脚本运行时使用
 
 交互命令:
-open: 打开解码输出文件夹.
+"open": 打开解码输出文件夹.
+"quit": 退出
+"id:歌曲id": 解码对应id
 """
              ][1].format(this=__file__)
         )
@@ -90,6 +96,12 @@ open: 打开解码输出文件夹.
     elif command == "-translate" or command == "-yT":
         print("TranslateLyrics enabled.")
         mVars.Vars.now["translate"] = "1"
+    elif command == "-noLyrics" or command == "-nL":
+        print("GenerateLyrics disabled.")
+        mVars.Vars.now["generateLyrics"] = "0"
+    elif command == "-lyrics" or command == "-yL":
+        print("GenerateLyrics enabled.")
+        mVars.Vars.now["generateLyrics"] = "1"
     elif "-I\"" in command:
         mVars.Vars.now["in"] = os.path.abspath(command.replace("-I", "", 1).strip('"'))
         print('Source input dir changed: ' + mVars.Vars.now["in"])
@@ -187,6 +199,7 @@ class Listener:
             decryptFile.path = os.path.abspath(self.decrypter.out_path)
             print(f"{decryptFile.song.getSongTitle()} - {decryptFile.song.getSongArtist()} 解码成功！\n"
                   f"生成文件 \"{decryptFile.totalPath}\"")
+            print(f"生成文件 \"{decryptFile.totalLyricsPath}\"") if mVars.Vars.now['generateLyrics'] == "1" else None
             playsound(self.finish_mp3)
             self.openOutPath()
             if not self.checkFile(decryptFile.totalPath):
